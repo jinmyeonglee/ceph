@@ -300,7 +300,8 @@ public:
   void delete_qos_info_by_session(Session *session);
 
   /* multi MDS broadcast message */
-  void broadcast_qos_info_update_to_mds(const VolumeId& vid);
+  // void broadcast_qos_info_update_to_mds(const VolumeId& vid);
+  void broadcast_qos_info_update_to_mds(const VolumeId& vid, const dmclock_info_t dmclock_info);
   void handle_qos_info_update_message(const cref_t<MDSDmclockQoS> &m);
   void proc_message(const cref_t<Message> &m);
 

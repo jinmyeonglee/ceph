@@ -5,6 +5,7 @@
 #define CEPH_MDSDMCLOCKQOS_H
 
 #include "include/types.h"
+#include "mds/mdstypes.h"
 #include "msg/Message.h"
 
 #define MASTER_VERSION
@@ -28,9 +29,11 @@ public:
 
 private:
   std::string volume_id;
+  dmclock_info_t dmclock_info;
 
  public:
   std::string get_volume_id() const { return volume_id; }
+  dmclock_info_t get_dmclock_info const { return dmclock_info; }
 
 protected:
 #ifndef MASTER_VERSION
@@ -45,6 +48,17 @@ protected:
 #else
   MDSDmclockQoS(const std::string& _volume_id) : MMDSOp{MSG_MDS_DMCLOCK_QOS, HEAD_VERSION, COMPAT_VERSION}, volume_id(_volume_id) {}
 #endif
+#ifndef MASTER_VERSION
+  MDSDmclockQoS(const std::string& _volume_id, const dmclock_info_t _dmclock_info) : 
+    MessageInstance(MSG_MDS_DMCLOCK_QOS) {
+      this->volume_id = _volume_id;
+      this->dmclock_info = _dmclock_info;
+    }
+#else
+  MDSDmclockQoS(const std::string& _volume_id, const dmclock_info_t _dmclock_info) : 
+    MMDSOp{MSG_MDS_DMCLOCK_QOS, HEAD_VERSION, COMPAT_VERSION}, volume_id(_volume_id), dmclock_info(_dmclock_info) {}
+#endif
+
   ~MDSDmclockQoS() override {}
 
 public:
@@ -53,11 +67,13 @@ public:
   void encode_payload(uint64_t features) override {
     using ceph::encode;
     encode(volume_id, payload);
+    encode(dmclock_info, payload);
   }
   void decode_payload() override {
     using ceph::decode;
     auto p = payload.cbegin();
     decode(volume_id, p);
+    decode(dmclock_info, p);
     ceph_assert(p.end());
   }
 

@@ -2055,6 +2055,39 @@ void MDCache::project_rstat_frag_to_inode(const nest_info_t& rstat,
     pin->reset_old_inodes(std::move(_old_inodes));
 }
 
+void broadcast_qos_info(CInode *in, client_t exclude_ct, bool qos_info_change)
+{
+  dout(20) << "broadcast_qos_info qos_info_change: " << qos_info_chage << dendl;
+
+  if (!(mds->is_active() || mds->is_stopping())
+    return;
+
+  if (!in->is_auth() || in->is_frozon())
+    return;
+
+  if (!qos_info_change)
+    return;
+
+  for (auto &p : in->client_caps) {
+    Capability *cap = &p.second;
+    if (exclude_ct >= 0 && exclude_ct != p.first) {
+      auto msg = make_message<MClientQoS>();
+      msg->ino = in->ino();
+      msg->dmclock_info = pi->dmclock_info;
+
+      dout(20) << "send MClientQoS Message to client " << p.first << dendl;
+      mds->send_message_client_counted(msg, cap->get_session());
+    }
+  }
+
+  for (const auto &it : in->get_replicas()) {
+    auto msg = make_message<MGatherCaps>();
+    msg->ino = in->ino();
+    mds->send_message_mds(msg, it.first);
+  }
+
+}
+
 void MDCache::broadcast_quota_to_client(CInode *in, client_t exclude_ct, bool quota_change)
 {
   if (!(mds->is_active() || mds->is_stopping()))

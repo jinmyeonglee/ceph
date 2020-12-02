@@ -368,7 +368,7 @@ void MDSDmclockScheduler::delete_qos_info_by_session(Session *session)
   delete_session_from_volume_info(vid, sid);
 }
 
-void MDSDmclockScheduler::broadcast_qos_info_update_to_mds(const VolumeId& vid)
+void MDSDmclockScheduler::broadcast_qos_info_update_to_mds(const VolumeId& vid, const dmclock_info_t dmclock_info)
 {
   std::set<mds_rank_t> actives;
   mds->get_mds_map()->get_active_mds_set(actives);
@@ -381,7 +381,7 @@ void MDSDmclockScheduler::broadcast_qos_info_update_to_mds(const VolumeId& vid)
     if (mds->get_nodeid() == it) {
       continue;
     }
-    auto qos_msg = make_message<MDSDmclockQoS>(convert_subvol_root(vid));
+    auto qos_msg = make_message<MDSDmclockQoS>(convert_subvol_root(vid), dmclock_info);
 
     mds->send_message_mds(qos_msg, it);
     dout(0) << "send message to MDS " << it << " vid: " << vid << dendl;
@@ -397,7 +397,11 @@ void MDSDmclockScheduler::handle_qos_info_update_message(const cref_t<MDSDmclock
 
   if (check_volume_info_existence(m->get_volume_id()) == true) {
     dout(0) << "session maintains client info for volume_id = " << m->get_volume_id() << dendl;
-    update_qos_info_from_xattr(m->get_volume_id());
+    auto dmclock_info = m->get_dmclock_info();
+    auto ClientInfo client_info(dmclock_info.mds_reservation, dmclock_info.mds_weight, dmclock_info.mds_limit);
+
+    update_volume_info(m->get_volume_id(), client_info, false);
+    // update_qos_info_from_xattr(m->get_volume_id());
   } else {
     dout(0) << "there is not client info for volume_id = " << m->get_volume_id() << dendl;
   }

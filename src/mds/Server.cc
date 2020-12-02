@@ -5836,6 +5836,8 @@ void Server::handle_set_vxattr(MDRequestRef& mdr, CInode *cur)
       // Update dmclock's client_info_map
       update_dmclock = new_info.is_valid();
       if (update_dmclock) {
+        client_t exclude_ct = mdr->get_client();
+        mdcache->broadcast_qos_info(cur, exclude_ct, true);
         // TODO: Update update_volume_info to use dmclock_info_t
         ClientInfo client_info(new_info.mds_reservation, new_info.mds_weight, new_info.mds_limit);
         mds->mds_dmclock_scheduler->update_volume_info(path, client_info, false);

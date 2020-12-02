@@ -26,6 +26,7 @@
 
 #include "messages/MCacheExpire.h"
 #include "messages/MClientQuota.h"
+#include "messages/MClientQoS.h"
 #include "messages/MClientRequest.h"
 #include "messages/MClientSnap.h"
 #include "messages/MDentryLink.h"
@@ -416,6 +417,7 @@ class MDCache {
 				    CDir *parent, int linkunlink, bool update_inode);
   void project_rstat_frag_to_inode(const nest_info_t& rstat, const nest_info_t& accounted_rstat,
 				   snapid_t ofirst, snapid_t last, CInode *pin, bool cow_head);
+  void broadcast_qos_info(CInode *in, client_t exclude_ct = -1, bool qos_info_change = false);
   void broadcast_quota_to_client(CInode *in, client_t exclude_ct = -1, bool quota_change = false);
   void predirty_journal_parents(MutationRef mut, EMetaBlob *blob,
 				CInode *in, CDir *parent,
