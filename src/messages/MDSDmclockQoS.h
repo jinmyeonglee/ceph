@@ -33,7 +33,7 @@ private:
 
  public:
   std::string get_volume_id() const { return volume_id; }
-  dmclock_info_t get_dmclock_info const { return dmclock_info; }
+  dmclock_info_t get_dmclock_info() const { return dmclock_info; }
 
 protected:
 #ifndef MASTER_VERSION

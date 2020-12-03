@@ -2055,37 +2055,44 @@ void MDCache::project_rstat_frag_to_inode(const nest_info_t& rstat,
     pin->reset_old_inodes(std::move(_old_inodes));
 }
 
-void broadcast_qos_info(CInode *in, client_t exclude_ct, bool qos_info_change)
+void MDCache::broadcast_qos_info(CInode *in, client_t exclude_ct, bool qos_info_change)
 {
-  dout(20) << "broadcast_qos_info qos_info_change: " << qos_info_chage << dendl;
+  dout(20) << "broadcast_qos_info qos_info_change: " << qos_info_change << dendl;
 
-  if (!(mds->is_active() || mds->is_stopping())
+  if (!(mds->is_active() || mds->is_stopping()))
     return;
 
-  if (!in->is_auth() || in->is_frozon())
+  if (!in->is_auth() || in->is_frozen())
     return;
 
   if (!qos_info_change)
     return;
 
+  // sync client
+  auto dmclock_info = in->get_projected_inode()->dmclock_info;
   for (auto &p : in->client_caps) {
     Capability *cap = &p.second;
     if (exclude_ct >= 0 && exclude_ct != p.first) {
       auto msg = make_message<MClientQoS>();
       msg->ino = in->ino();
-      msg->dmclock_info = pi->dmclock_info;
+      msg->dmclock_info = dmclock_info;
 
       dout(20) << "send MClientQoS Message to client " << p.first << dendl;
       mds->send_message_client_counted(msg, cap->get_session());
     }
   }
 
+  //sync mds caps
   for (const auto &it : in->get_replicas()) {
     auto msg = make_message<MGatherCaps>();
     msg->ino = in->ino();
     mds->send_message_mds(msg, it.first);
   }
 
+  // sync volume_info
+  string path; 
+  in->make_path_string(path, true);
+  mds->mds_dmclock_scheduler->broadcast_qos_info_update_to_mds(path, dmclock_info);
 }
 
 void MDCache::broadcast_quota_to_client(CInode *in, client_t exclude_ct, bool quota_change)
@@ -10865,27 +10872,20 @@ void MDCache::decode_replica_inode(CInode *&in, bufferlist::const_iterator& p, C
 
   DECODE_FINISH(p); 
 
-  dout(20) << "decode_replica_inode reservation: " 
-    << in->inode->dmclock_info.mds_reservation
-    << " weight: " << in->inode->dmclock_info.mds_weight 
-    << " limit: " << in->inode->dmclock_info.mds_limit << dendl;
+  dout(20) << "decode_replica_inode: " << in->inode->dmclock_info << dendl;
 
   auto& dmclock_info = in->inode->dmclock_info;
-  bool qos_valid = (dmclock_info.mds_reservation > 0.0 &&
-		    dmclock_info.mds_weight > 0.0 &&
-		    dmclock_info.mds_limit > 0.0);
+  string path;
+  in->make_path_string(path, true);
 
-  if (qos_valid) {
-    string path;
-    if (in->is_root()) {
-      path = "/";
-    } else {
-      in->make_path_string(path, true);
-    }
+  ClientInfo client_info(dmclock_info.mds_reservation, dmclock_info.mds_weight, dmclock_info.mds_limit);
 
-    ClientInfo client_info(dmclock_info.mds_reservation, dmclock_info.mds_weight, dmclock_info.mds_limit);
-
-    mds->mds_dmclock_scheduler->update_volume_info(path, client_info, false);
+  if (mds->mds_dmclock_scheduler->check_volume_info_existence(path) == false) {
+    dout(0) << "decode_replica_inode: no voluem_info" << dendl;
+    mds->mds_dmclock_scheduler->create_volume_info(path, client_info, !dmclock_info.is_valid());
+  } else {
+    dout(0) << "decode_replica_inode: voluem_info exists" << dendl;
+    mds->mds_dmclock_scheduler->update_volume_info(path, client_info, !dmclock_info.is_valid());
   }
 }
 

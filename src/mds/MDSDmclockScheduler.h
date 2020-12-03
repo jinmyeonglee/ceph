@@ -296,7 +296,7 @@ public:
   void dump(Formatter *f) const;
 
   void create_qos_info_from_xattr(Session *session);
-  void update_qos_info_from_xattr(const VolumeId &vid);
+  // void update_qos_info_from_xattr(const VolumeId &vid);
   void delete_qos_info_by_session(Session *session);
 
   /* multi MDS broadcast message */
