@@ -401,7 +401,8 @@ CInode *MDSDmclockScheduler::traverse_path_inode(const cref_t<MDSDmclockQoS> &m)
   }
   if (r < 0) {
     dout(7) << "failed to discover or not dir " << m->get_volume_id() << ", NAK" << dendl;
-    ceph_abort();
+    return nullptr;
+    // ceph_abort();
   }
   return in;
 }
